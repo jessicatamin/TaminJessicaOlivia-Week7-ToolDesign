@@ -14,7 +14,21 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Literal, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Sequence, Tuple, Union
+
+
+class Tool:
+    """
+    Simple wrapper for an agent tool: name, description, and executable function.
+    """
+
+    def __init__(self, name: str, description: str, fn: Callable[..., Any]) -> None:
+        self.name = name
+        self.description = description
+        self.fn = fn
+
+    def execute(self, **kwargs: Any) -> Any:
+        return self.fn(**kwargs)
 
 
 TokenNormalization = Literal["lower", "none"]
@@ -557,12 +571,27 @@ class KeywordExtractorTool:
         }
 
 
+def _keyword_extractor_fn(**kwargs: Any) -> Dict[str, Any]:
+    """Adapter so KeywordExtractorTool.run can be used as Tool.fn(**kwargs)."""
+    return KeywordExtractorTool.run(kwargs)
+
+
+keyword_extractor_tool = Tool(
+    name=KeywordExtractorTool.NAME,
+    description=KeywordExtractorTool.DESCRIPTION,
+    fn=_keyword_extractor_fn,
+)
+
+
 if __name__ == "__main__":
     demo_text = (
         "Designing a custom tool for an AI agent: we need keyword extraction, clear schemas, "
         "and proper documentation. Keyword extraction should return keyphrases too."
     )
-    result = KeywordExtractorTool.run({"text": demo_text, "top_k": 8, "ngram_range": [1, 2]})
+    # Using the Tool wrapper: keyword_extractor_tool.execute(**kwargs)
+    result = keyword_extractor_tool.execute(
+        text=demo_text, top_k=8, ngram_range=[1, 2]
+    )
     if not result["ok"]:
         print("Error:", result["error"])
         raise SystemExit(1)
